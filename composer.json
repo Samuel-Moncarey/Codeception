@@ -1,5 +1,5 @@
 {
-    "name":"codeception/codeception",
+    "name":"samuelmoncarey/codeception",
     "description":"BDD-style testing framework",
     "keywords":["BDD", "acceptance testing", "functional testing", "unit testing", "tdd"],
     "homepage":"http://codeception.com/",
@@ -7,9 +7,9 @@
     "license":"MIT",
     "authors":[
         {
-            "name":"Michael Bodnarchuk",
-            "email":"davert@mail.ua",
-            "homepage":"http://codegyre.com"
+            "name":"Samuel Moncarey",
+            "email":"samuel.moncarey@addemar.com",
+            "homepage":"http://samuel-moncarey.be"
         }
     ],
     "minimum-stability": "stable",
