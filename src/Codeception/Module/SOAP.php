@@ -116,6 +116,13 @@ class SOAP extends Module
 
 
     /**
+     * Submits request to endpoint.
+     *
+     * Requires of api function name and parameters.
+     * Parameters can be passed as array.
+     *
+     * You are allowed to execute as much requests as you need inside test.
+     *
      * @param string $action
      * @param array $params
      */
