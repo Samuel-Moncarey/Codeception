@@ -1,172 +1,144 @@
 <?php
+
 namespace Codeception\Module;
 
 /**
  * Module for testing SOAP WSDL web services.
  * Send requests and check if response matches the pattern.
  *
- * This module can be used either with frameworks or PHPBrowser.
- * It tries to guess the framework is is attached to.
- * If a endpoint is a full url then it uses PHPBrowser.
- *
- * ### Using Inside Framework
- *
- * Please note, that PHP SoapServer::handle method sends additional headers.
- * This may trigger warning: "Cannot modify header information"
- * If you use PHP SoapServer with framework, try to block call to this method in testing environment.
- *
  * ## Status
  *
- * * Maintainer: **davert**
+ * * Maintainer: **samuel**
  * * Stability: **stable**
- * * Contact: codecept@davert.mail.ua
+ * * Contact: samuel.moncarey@addemar.com
  *
  * ## Configuration
  *
- * * endpoint *required* - soap wsdl endpoint
+ * * wsdl *required* - soap wsdl
  *
  * ## Public Properties
  *
- * * request - last soap request (DOMDocument)
- * * response - last soap response (DOMDocument)
+ * * xmlrequest - last soap request (DOMDocument)
+ * * xmlresponse - last soap response (DOMDocument)
+ * * response - last soap response value|object
  *
  */
 
+use Codeception\Module;
+use Codeception\TestCase;
 use Codeception\Util\Soap as SoapUtils;
+use SoapClient;
+use SoapHeader;
+use SoapVar;
+use DOMDocument;
 
-class SOAP extends \Codeception\Module
+/**
+ * Class RealSOAP
+ * @package Codeception\Module
+ */
+class SOAP extends Module
 {
 
-    protected $config = array('schema' => "", 'schema_url' => 'http://schemas.xmlsoap.org/soap/envelope/');
-    protected $requiredFields = array('endpoint');
     /**
-     * @var \Symfony\Component\BrowserKit\Client
+     * @var array
+     */
+    protected $config = array('schema_url' => 'http://schemas.xmlsoap.org/soap/envelope/');
+    /**
+     * @var array
+     */
+    protected $requiredFields = array('wsdl');
+    /**
+     * @var SoapClient
      */
     public $client = null;
-    public $is_functional = false;
 
     /**
-     * @var \DOMDocument
+     * @var SoapHeader[]
+     */
+    public $soapHeaders = array();
+
+    /**
+     * @var DOMDocument
      */
     public $xmlRequest = null;
     /**
-     * @var \DOMDocument
+     * @var DOMDocument
      */
     public $xmlResponse = null;
+    /**
+     * @var mixed
+     */
+    public $response;
+    /**
+     * @var int
+     */
+    private $responseStatusCode;
 
-    public function _before(\Codeception\TestCase $test)
+    /**
+     * @param TestCase $test
+     */
+    public function _before(TestCase $test)
     {
-        if (!$this->client) {
-            if (!strpos($this->config['endpoint'], '://')) {
-                // not valid url
-                foreach ($this->getModules() as $module) {
-                    if ($module instanceof \Codeception\Lib\Framework) {
-                        $this->client = $module->client;
-                        $this->is_functional = true;
-                        break;
-                    }
-                }
-            } else {
-                if (!$this->hasModule('PhpBrowser'))
-                    throw new \Codeception\Exception\ModuleConfig(__CLASS__, "For Soap testing via HTTP please enable PhpBrowser module");
-                $this->client = $this->getModule('PhpBrowser')->client;
-            }
-            if (!$this->client) throw new \Codeception\Exception\ModuleConfig(__CLASS__, "Client for SOAP requests not initialized.\nProvide either PhpBrowser module or Framework module which shares FrameworkInterface");
-        }
-
-        $this->buildRequest();
-        $this->xmlResponse = null;
+        $this->client = new SoapClient($this->config['wsdl'], array('trace'=> true, 'exceptions'=> false));
     }
 
     /**
-     * Prepare SOAP header.
-     * Receives header name and parameters as array.
-     *
-     * Example:
-     *
-     * ``` php
-     * <?php
-     * $I->haveSoapHeader('AuthHeader', array('username' => 'davert', 'password' => '123345'));
-     * ```
-     *
-     * Will produce header:
-     *
-     * ```
-     *    <soapenv:Header>
-     *      <SessionHeader>
-     *      <AuthHeader>
-     *          <username>davert</username>
-     *          <password>12345</password>
-     *      </AuthHeader>
-     *   </soapenv:Header>
-     * ```
-     *
+     * @return DOMDocument
+     */
+    public function grabXMLRequest() {
+        return $this->xmlRequest;
+    }
+
+    /**
+     * @return DOMDocument
+     */
+    public function grabXMLResponse() {
+        return $this->xmlResponse;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function grabResponse() {
+        return $this->response;
+    }
+
+    /**
      * @param $header
      * @param array $params
      */
     public function haveSoapHeader($header, $params = array())
     {
-        $soap_schema_url = $this->config['schema_url'];
-        $xml = $this->xmlRequest;
-        $xmlHeader = $xml->documentElement->getElementsByTagNameNS($soap_schema_url, 'Header')->item(0);
-        $headerEl = $xml->createElement($header);
-        SoapUtils::arrayToXml($xml, $headerEl, $params);
-        $xmlHeader->appendChild($headerEl);
+        $namespace = $this->config['schema_url'];
+        $soapVar = new SoapVar($params, SOAP_ENC_OBJECT);
+        $this->soapHeaders[] = new SoapHeader($namespace, $header, $soapVar);
     }
 
+
     /**
-     * Submits request to endpoint.
-     *
-     * Requires of api function name and parameters.
-     * Parameters can be passed either as DOMDocument, DOMNode, XML string, or array (if no attributes).
-     *
-     * You are allowed to execute as much requests as you need inside test.
-     *
-     * Example:
-     *
-     * ``` php
-     * $I->sendRequest('UpdateUser', '<user><id>1</id><name>notdavert</name></user>');
-     * $I->sendRequest('UpdateUser', \Codeception\Utils\Soap::request()->user
-     *   ->id->val(1)->parent()
-     *   ->name->val('notdavert');
-     * ```
-     *
-     * @param $request
-     * @param $body
+     * @param string $action
+     * @param array $params
      */
-    public function sendSoapRequest($action, $body = "")
+    public function sendSoapRequest($action, $params = array())
     {
-        $soap_schema_url = $this->config['schema_url'];
-        $xml = $this->xmlRequest;
-        $call = $xml->createElement('ns:' . $action);
-        if ($body) {
-            $bodyXml = SoapUtils::toXml($body);
-            if ($bodyXml->hasChildNodes()) {
-                foreach ($bodyXml->childNodes as $bodyChildNode) {
-                    $bodyNode = $xml->importNode($bodyChildNode, true);
-                    $call->appendChild($bodyNode);
-                }
+        $this->response = $this->client->__soapCall($action, $params, array('trace'=>true, 'exceptions'=> false), $this->soapHeaders);
+        $responseHeaders = explode("\n", $this->client->__getLastResponseHeaders());
+        foreach ($responseHeaders as $header) {
+            if(preg_match("/^HTTP\/1.1/", $header)) {
+                $this->responseStatusCode = (intval(substr($header,9,3)));
             }
         }
+        $this->xmlRequest = DOMDocument::loadXML($this->client->__getLastRequest());
+        $this->xmlResponse = DOMDocument::loadXML($this->client->__getLastResponse());
+    }
 
-        $xmlBody = $xml->getElementsByTagNameNS($soap_schema_url, 'Body')->item(0);
-
-        // cleanup if body already set
-        foreach ($xmlBody->childNodes as $node) {
-            $xmlBody->removeChild($node);
+    public function seeResponseCodeIs($code) {
+        if (!is_null($this->responseStatusCode)) {
+            $this->assertEquals($this->responseStatusCode, $code);
         }
-
-        $xmlBody->appendChild($call);
-        $this->debugSection("Request", $req = $xml->C14N());
-
-        if ($this->is_functional) {
-            $response = $this->processInternalRequest($action, $req);
-        } else {
-            $response = $this->processExternalRequest($action, $req);
+        else {
+            throw new \Exception('There is no response available yet');
         }
-
-        $this->debugSection("Response", $response);
-        $this->xmlResponse = SoapUtils::toXml($response);
     }
 
     /**
@@ -328,17 +300,6 @@ class SOAP extends \Codeception\Module
         $this->assertEquals(0, $res->length);
     }
 
-
-
-    /**
-     * Checks response code from server.
-     *
-     * @param $code
-     */
-    public function seeResponseCodeIs($code) {
-        \PHPUnit_Framework_Assert::assertEquals($code, $this->client->getInternalResponse()->getStatus(), "soap response code matches expected");
-    }
-
     /**
      * Finds and returns text contents of element.
      * Element is matched by either CSS or XPath
@@ -386,7 +347,22 @@ class SOAP extends \Codeception\Module
         $this->fail("No node matched CSS or XPath '$cssOrXPath'");
     }
 
+    /**
+     * @param $xml
+     * @return string
+     */
+    protected function canonicalize($xml)
+    {
+        $xml = SoapUtils::toXml($xml)->C14N();
+        return $xml;
+    }
 
+
+    /**
+     * @param $schema
+     * @param $xml
+     * @return bool
+     */
     protected function structureMatches($schema, $xml)
     {
         foreach ($schema->childNodes as $node1) {
@@ -400,73 +376,6 @@ class SOAP extends \Codeception\Module
             if (!$matched) return false;
         }
         return true;
-    }
-
-    protected function getSchema()
-    {
-        return $this->config['schema'];
-    }
-
-    protected function canonicalize($xml)
-    {
-        $xml = SoapUtils::toXml($xml)->C14N();
-        return $xml;
-    }
-
-    /**
-     * @return \DOMDocument
-     */
-    protected function buildRequest()
-    {
-        $soap_schema_url = $this->config['schema_url'];
-        $xml = new \DOMDocument();
-        $root = $xml->createElement('soapenv:Envelope');
-        $xml->appendChild($root);
-        $root->setAttribute('xmlns:ns', $this->getSchema());
-        $root->setAttribute('xmlns:soapenv', $soap_schema_url);
-        $body = $xml->createElementNS($soap_schema_url, 'soapenv:Body');
-        $header = $xml->createElementNS($soap_schema_url, 'soapenv:Header');
-        $root->appendChild($header);
-        $root->appendChild($body);
-        $this->xmlRequest = $xml;
-        return $xml;
-    }
-
-    protected function processRequest($action, $body)
-    {
-        $this->client->request('POST',
-        $this->config['endpoint'],
-        array(), array(),
-        array(
-            "HTTP_Content-Type" => "text/xml; charset=UTF-8",
-            'HTTP_Content-Length' => strlen($body),
-            'HTTP_SOAPAction' => $action),
-        $body
-        );
-    }
-
-    protected function processInternalRequest($action, $body)
-    {
-        ob_start();
-        try {
-            $this->client->setServerParameter('HTTP_HOST', 'localhost');
-            $this->processRequest($action, $body);
-        } catch (\ErrorException $e) {
-            // Zend_Soap outputs warning as an exception
-            if (strpos($e->getMessage(),'Warning: Cannot modify header information')===false) {
-                ob_end_clean();
-                throw $e;
-            }
-        }
-        $response = ob_get_contents();
-        ob_end_clean();
-        return $response;
-    }
-
-    protected function processExternalRequest($action, $body)
-    {
-        $this->processRequest($action, $body);
-        return $this->client->getInternalResponse()->getContent();
     }
 
 }
