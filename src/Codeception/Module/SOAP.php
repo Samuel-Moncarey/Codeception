@@ -33,7 +33,7 @@ use SoapVar;
 use DOMDocument;
 
 /**
- * Class RealSOAP
+ * Class SOAP
  * @package Codeception\Module
  */
 class SOAP extends Module
