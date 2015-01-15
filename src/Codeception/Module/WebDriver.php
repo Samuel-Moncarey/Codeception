@@ -2,6 +2,7 @@
 namespace Codeception\Module;
 
 use Codeception\Exception\ElementNotFound;
+use Codeception\Exception\MalformedLocator;
 use Codeception\Exception\ModuleConfig as ModuleConfigException;
 use Codeception\Exception\TestRuntime;
 use Codeception\Util\Debug;
@@ -408,11 +409,7 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
     {
         $page = $this->webDriver;
         if ($context) {
-            $nodes = $this->match($this->webDriver, $context);
-            if (empty($nodes)) {
-                throw new ElementNotFound($context, 'CSS or XPath');
-            }
-            $page = reset($nodes);
+            $page = $this->matchFirstOrFail($this->webDriver, $context);
         }
         $el = $this->findClickable($page, $link);
         if (!$el) {
@@ -437,7 +434,7 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
         }
 
         // try to match by CSS or XPath
-        $els = $this->match($page, $link);
+        $els = $this->match($page, $link, false);
         if (!empty($els)) {
             return reset($els);
         }
@@ -487,6 +484,7 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
         }
         if (is_array($selector) || ($selector instanceof \WebDriverBy)) {
             $fields = $this->match($this->webDriver, $selector);
+
             if (empty($fields)) {
                 throw new ElementNotFound($selector);
             }
@@ -512,7 +510,7 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
         }
 
         // try to match by CSS or XPath
-        $fields = $this->match($this->webDriver, $selector);
+        $fields = $this->match($this->webDriver, $selector, false);
         if (!empty($fields)) {
             return $fields;
         }
@@ -916,7 +914,7 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
 
     public function grabTextFrom($cssOrXPathOrRegex)
     {
-        $els = $this->match($this->webDriver, $cssOrXPathOrRegex);
+        $els = $this->match($this->webDriver, $cssOrXPathOrRegex, false);
         if (count($els)) {
             return $els[0]->getText();
         }
@@ -1272,9 +1270,7 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
     public function waitForElementChange($element, \Closure $callback, $timeout = 30)
     {
         $els = $this->match($this->webDriver, $element);
-        if (!count($els)) {
-            throw new ElementNotFound($element, "CSS or XPath");
-        }
+        $this->elementOrFail($element, $els);
         $el = reset($els);
         $checker = function () use ($el, $callback) {
             return $callback($el);
@@ -1615,32 +1611,42 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
      * @param $selector
      * @return array
      */
-    protected function match($page, $selector)
+    protected function match($page, $selector, $throwMalformed = true)
     {
-        $nodes = array();
         if (is_array($selector)) {
-            return $page->findElements($this->getStrictLocator($selector));
+            try {
+                return $page->findElements($this->getStrictLocator($selector));
+            } catch (\InvalidSelectorException $e) {
+                throw new MalformedLocator(key($selector).' => '.reset($selector), "Strict locator");
+            }
         }
         if ($selector instanceof \WebDriverBy) {
-            return $page->findElements($selector);
+            try {
+                return $page->findElements($selector);
+            } catch (\InvalidSelectorException $e) {
+                throw new MalformedLocator(sprintf("WebDriverBy::%s('%s')", $selector->getMechanism(), $selector->getValue()), 'WebDriver');
+            }
         }
-
-        if (Locator::isID($selector)) {
-            $nodes = $page->findElements(\WebDriverBy::id(substr($selector, 1)));
+        $isValidLocator = false;
+        $nodes = [];
+        try {
+            if (Locator::isID($selector)) {
+                $isValidLocator = true;
+                $nodes = $page->findElements(\WebDriverBy::id(substr($selector, 1)));
+            }
+            if (empty($nodes) and Locator::isCSS($selector)) {
+                $isValidLocator = true;
+                $nodes = $page->findElements(\WebDriverBy::cssSelector($selector));
+            }
+            if (empty($nodes) and Locator::isXPath($selector)) {
+                $isValidLocator = true;
+                $nodes = $page->findElements(\WebDriverBy::xpath($selector));
+            }
+        } catch (\InvalidSelectorException $e) {
+            throw new MalformedLocator($selector);
         }
-        if (!empty($nodes)) {
-            return $nodes;
-        }
-        if (Locator::isCSS($selector)) {
-            $nodes = $page->findElements(\WebDriverBy::cssSelector($selector));
-        }
-        if (!empty($nodes)) {
-            return $nodes;
-        }
-        if (Locator::isXPath($selector)) {
-            $nodes = $page->findElements(\WebDriverBy::xpath($selector));
-        } else {
-            codecept_debug("XPath `$selector` is malformed!");
+        if (!$isValidLocator and $throwMalformed) {
+            throw new MalformedLocator($selector);
         }
         return $nodes;
     }
@@ -1667,8 +1673,8 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
             case 'class':
                 return \WebDriverBy::className($locator);
             default:
-                throw new TestRuntime(
-                    "Locator type '$by' is not defined. Use either: xpath, css, id, link, class, name"
+                throw new MalformedLocator("$by => $locator",
+                    "Strict locator can be either xpath, css, id, link, class, name: "
                 );
         }
     }
@@ -1682,10 +1688,10 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
     protected function matchFirstOrFail($page, $selector)
     {
         $els = $this->match($page, $selector);
-        if (count($els)) {
-            return reset($els);
+        if (!count($els)) {
+            throw new ElementNotFound($selector, "CSS or XPath");
         }
-        throw new ElementNotFound($selector, 'CSS or XPath');
+        return reset($els);
     }
 
     /**
@@ -1854,8 +1860,9 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
      */
     protected function matchVisible($selector)
     {
+        $els = $this->match($this->webDriver, $selector);
         $nodes = array_filter(
-            $this->match($this->webDriver, $selector),
+            $els,
             function (\WebDriverElement $el) {
                 return $el->isDisplayed();
             }
@@ -1887,4 +1894,5 @@ class WebDriver extends \Codeception\Module implements WebInterface, RemoteInter
         }
         throw new \Exception("Only CSS or XPath allowed");
     }
+
 }

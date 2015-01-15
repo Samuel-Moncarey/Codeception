@@ -496,4 +496,11 @@ class WebDriverTest extends TestsForBrowsers
         $this->module->amOnPage('/form/bug1598');
         $this->module->waitForText('12,345', 10, '#field');
     }
+
+    public function testSeeElementMalformedWdLocator()
+    {
+        $this->setExpectedException('Codeception\Exception\MalformedLocator');
+        $this->module->amOnPage('/');
+        $this->module->seeElement(WebDriverBy::xpath('H---EY!'));
+    }
 }

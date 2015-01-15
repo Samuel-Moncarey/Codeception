@@ -9,7 +9,7 @@ use Codeception\Exception\Configuration as ConfigurationException;
 
 class Codecept
 {
-    const VERSION = "2.0.9";
+    const VERSION = "2.1.0";
 
     /**
      * @var \Codeception\PHPUnit\Runner
@@ -19,6 +19,11 @@ class Codecept
      * @var \PHPUnit_Framework_TestResult
      */
     protected $result;
+
+    /**
+     * @var \Codeception\CodeCoverage
+     */
+    protected $coverage;
 
     /**
      * @var \Symfony\Component\EventDispatcher\EventDispatcher
