@@ -22,7 +22,7 @@ class Actor
  *
  * @SuppressWarnings(PHPMD)
 */
-class {{guy}} extends \Codeception\Actor
+class {{actor}} extends \Codeception\Actor
 {
    {{methods}}
 }
@@ -82,7 +82,7 @@ EOF;
             ->place('namespace', $namespace ? "namespace $namespace;" : '')
             ->place('hash', self::genHash($this->actions, $this->settings))
             ->place('use', implode("\n", $uses))
-            ->place('guy', $this->settings['class_name'])
+            ->place('actor', $this->settings['class_name'])
             ->place('methods', implode("\n\n ", $code))
             ->place('inheritedMethods', $this->prependAbstractGuyDocBlocks())
             ->produce();

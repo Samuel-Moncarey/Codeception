@@ -6,7 +6,7 @@
 Module for testing REST WebService.
 
 This module can be used either with frameworks or PHPBrowser.
-It tries to guess the framework is is attached to.
+It tries to guess the framework it is attached to.
 
 Whether framework is used it operates via standard framework modules.
 Otherwise sends raw HTTP requests to url via PHPBrowser.
@@ -234,7 +234,7 @@ You can check that you didn't accidentally sent the same header twice.
 ``` php
 <?php
 $I->seeHttpHeaderOnce('Cache-Control');
-?>>
+?>
 ```
 
  * `param` $name

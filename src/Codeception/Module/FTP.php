@@ -42,6 +42,7 @@ namespace Codeception\Module;
  * * timeout: 90 - timeout settings for connecting the ftp server.
  * * user: anonymous - user to access ftp server, defaults to anonymous authentication.
  * * password - password, defaults to empty for anonymous.
+ * * key - path to RSA key for sftp.
  * * tmp - path to local directory for storing tmp files.
  * * passive: true - Turns on or off passive mode (FTP only)
  * * cleanup: true - remove tmp files from local directory on completion.
@@ -75,6 +76,7 @@ namespace Codeception\Module;
  *              timeout: 120
  *              user: 'root'
  *              password: 'root'
+ *              key: ~/.ssh/id_rsa
  *              tmp: 'tests/_data/ftp'
  *              cleanup: false
  *
@@ -102,6 +104,7 @@ class FTP extends \Codeception\Module\Filesystem
         'timeout' => 90,
         'user' => 'anonymous',
         'password' => '',
+        'key' => '',
         'tmp' => 'tests/_data',
         'passive' => false,
         'cleanup' => true);
@@ -123,7 +126,7 @@ class FTP extends \Codeception\Module\Filesystem
     public function _before(\Codeception\TestCase $test)
     {
         // Login using config settings
-        $this->loginAs($this->config['user'], $this->config['password']);
+        $this->loginAs($this->config['user'], $this->config['password'] );
     }
 
     /**
@@ -551,6 +554,12 @@ class FTP extends \Codeception\Module\Filesystem
                 if ($this->ftp === false) {
                     $this->ftp = null;
                     \PHPUnit_Framework_Assert::fail('failed to connect to ftp server');
+                }
+
+                if(isset($this->config['key'])) {
+                    $keyFile = file_get_contents($this->config['key']);
+                    $password = new \Crypt_RSA();
+                    $password->loadKey($keyFile);
                 }
 
                 if (!$this->ftp->login($user, $password)) {

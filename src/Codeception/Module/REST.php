@@ -56,7 +56,7 @@ class REST extends \Codeception\Module
     );
 
     /**
-     * @var \Symfony\Component\BrowserKit\Client
+     * @var \Symfony\Component\HttpKernel\Client|\Symfony\Component\BrowserKit\Client
      */
     public $client = null;
     public $isFunctional = false;
@@ -208,7 +208,7 @@ class REST extends \Codeception\Module
     {
         $this->haveHttpHeader('Authorization', 'Bearer '.$accessToken);
     }
-
+    
     /**
      * Sends a POST request to given uri.
      *
