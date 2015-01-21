@@ -1,35 +1,26 @@
 # SOAP Module
 
-**For additional reference, please review the [source](https://github.com/Codeception/Codeception/tree/2.0/src/Codeception/Module/SOAP.php)**
+**For additional reference, please review the [source](https://github.com/samuelmoncarey/Codeception/blob/2.0/src/Codeception/Module/SOAP.php)**
 
 
 Module for testing SOAP WSDL web services.
 Send requests and check if response matches the pattern.
 
-This module can be used either with frameworks or PHPBrowser.
-It tries to guess the framework is is attached to.
-If a endpoint is a full url then it uses PHPBrowser.
-
-### Using Inside Framework
-
-Please note, that PHP SoapServer::handle method sends additional headers.
-This may trigger warning: "Cannot modify header information"
-If you use PHP SoapServer with framework, try to block call to this method in testing environment.
-
 ## Status
 
-* Maintainer: **davert**
+* Maintainer: **samuel**
 * Stability: **stable**
 * Contact: codecept@davert.mail.ua
 
 ## Configuration
 
-* endpoint *required* - soap wsdl endpoint
+* wsdl *required* - soap wsdl url
 
 ## Public Properties
 
-* request - last soap request (DOMDocument)
-* response - last soap response (DOMDocument)
+* xmlrequest - last soap request (DOMDocument)
+* xmlresponse - last soap response (DOMDocument)
+* response - last soap response value|object
 
 
 
@@ -145,25 +136,6 @@ Element is matched by either CSS or XPath
 Prepare SOAP header.
 Receives header name and parameters as array.
 
-Example:
-
-``` php
-<?php
-$I->haveSoapHeader('AuthHeader', array('username' => 'davert', 'password' => '123345'));
-```
-
-Will produce header:
-
-```
-   <soapenv:Header>
-     <SessionHeader>
-     <AuthHeader>
-         <username>davert</username>
-         <password>12345</password>
-     </AuthHeader>
-  </soapenv:Header>
-```
-
  * `param` $header
  * `param array` $params
 
@@ -266,17 +238,14 @@ $I->seeSoapRequestIncludes($dom);
 Submits request to endpoint.
 
 Requires of api function name and parameters.
-Parameters can be passed either as DOMDocument, DOMNode, XML string, or array (if no attributes).
+Parameters must be passed as array.
 
 You are allowed to execute as much requests as you need inside test.
 
 Example:
 
 ``` php
-$I->sendRequest('UpdateUser', '<user><id>1</id><name>notdavert</name></user>');
-$I->sendRequest('UpdateUser', \Codeception\Utils\Soap::request()->user
-  ->id->val(1)->parent()
-  ->name->val('notdavert');
+$I->sendSoapRequest('UpdateUser', array('id'=>1, 'name'=>'Samuel'));
 ```
 
  * `param` $request
