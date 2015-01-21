@@ -198,8 +198,7 @@ class Cest extends \Codeception\TestCase implements
         return [
             'file' => $this->getFileName(),
             'name' => $this->getTestMethod(),
-            'class' => get_class($this->getTestClass()),
-            'feature' => $this->getFeature()
+            'class' => get_class($this->getTestClass())
         ];
     }
 

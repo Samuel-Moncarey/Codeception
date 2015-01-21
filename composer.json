@@ -1,15 +1,15 @@
 {
-    "name":"codeception/codeception",
+    "name":"addemar/codeception",
     "description":"BDD-style testing framework",
-    "keywords":["BDD", "acceptance testing", "functional testing", "unit testing", "tdd"],
+    "keywords":["BDD", "acceptance testing", "functional testing", "unit testing", "api testing", "tdd"],
     "homepage":"http://codeception.com/",
     "type":"library",
     "license":"MIT",
     "authors":[
         {
-            "name":"Michael Bodnarchuk",
-            "email":"davert@mail.ua",
-            "homepage":"http://codegyre.com"
+            "name":"Samuel Moncarey",
+            "email":"samuel.moncarey@addemar.com",
+            "homepage":"http://www.addemar.com"
         }
     ],
     "minimum-stability": "stable",

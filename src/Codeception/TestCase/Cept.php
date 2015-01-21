@@ -68,6 +68,6 @@ class Cept extends TestCase implements
 
     public function getReportFields()
     {
-        return ['name' => basename($this->getFileName(),'Cept.php'), 'file' => $this->getFileName(), 'feature' => $this->getFeature()];
+        return ['name' => basename($this->getFileName(),'Cept.php'), 'file' => $this->getFileName()];
     }
 }

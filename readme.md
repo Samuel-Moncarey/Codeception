@@ -62,26 +62,13 @@ For unit testing you can stay on classic PHPUnit tests, as Codeception can run t
 Documentation is currently included within the project. Look for it in the 'docs' directory.
 
 ## Installation
-
-### Phar
-
-Download [codecept.phar](http://codeception.com/codecept.phar)
-
-Copy it into your project.
-
-Run CLI utility:
-
-```
-php codecept.phar
-```
-
 ### Composer
 
 ```
-php composer.phar require "codeception/codeception"
+php composer.phar require "samuelmoncarey/codeception"
 ```
 
-Read Also [Installation](http://codeception.com/install) | **[QuickStart](http://codeception.com/quickstart)**
+Go to [https://packagist.org/packages/samuelmoncarey/codeception](https://packagist.org/packages/samuelmoncarey/codeception) for more details
 
 ## Getting Started
 
@@ -98,5 +85,4 @@ See Documentation for more information.
 ### License
 MIT
 
-(c) Michael Bodnarchuk "Davert"
-2011-2014
+(c) Samuel Moncarey 2015
